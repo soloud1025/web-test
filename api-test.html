@@ -1,7 +1,0 @@
-<button id="check">API 체크</button>
-<script>
-document.getElementById('check').onclick = async () => {
-  const r = await fetch('/api/ping');
-  alert(await r.text());
-};
-</script>
