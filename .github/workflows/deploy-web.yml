@@ -7,10 +7,20 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      AWS_DEFAULT_REGION: ap-northeast-2   # ← 전역으로 고정 설정
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
+
+      # AWS 자격증명 + 리전 설정(이후 step에서 자동 반영)
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
 
       - name: Determine upload dir
         id: dir
@@ -21,18 +31,11 @@ jobs:
 
       - name: Who am I? (STS)
         run: aws sts get-caller-identity
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Upload to S3
         run: aws s3 sync "${{ steps.dir.outputs.path }}/" "s3://${{ secrets.S3_BUCKET }}/" --delete
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Invalidate CloudFront
-        run: aws cloudfront create-invalidation --distribution-id "${{ secrets.CF_DISTRIBUTION_ID }}" --paths "/*"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: aws cloudfront create-invalidation \
+             --distribution-id "${{ secrets.CF_DISTRIBUTION_ID }}" \
+             --paths "/*"
